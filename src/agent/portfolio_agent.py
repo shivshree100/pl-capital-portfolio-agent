@@ -294,6 +294,34 @@ _TOOL_CONFIG = types.ToolConfig(
     function_calling_config=types.FunctionCallingConfig(mode="AUTO"),
 )
 
+# Forced mode: used as a RETRY when mode=AUTO returns no tool call for a
+# question that appears to be about portfolio data.  mode=ANY guarantees
+# the model calls one of the two tools, eliminating the "I'll just return
+# text" escape for valid portfolio questions.
+_FORCED_TOOL_CONFIG = types.ToolConfig(
+    function_calling_config=types.FunctionCallingConfig(mode="ANY"),
+)
+
+# Keywords that indicate a question is likely about portfolio data.
+# If the first dispatch (mode=AUTO) returns no tool call but the question
+# contains any of these, we retry with mode=ANY to force a tool call.
+_PORTFOLIO_KEYWORDS = [
+    "portfolio", "portfolios", "holdings", "holding", "sector", "sectors",
+    "securities", "security", "fund", "funds", "aum", "risk", "benchmark",
+    "benchmarks", "transaction", "transactions", "performance", "price",
+    "prices", "exposure", "diversification", "equity", "stock", "stocks",
+    "bond", "bonds", "nav", "sharpe", "volatility", "drawdown", "return",
+    "allocation", "weight", "cost basis", "market value", "active",
+    "passive", "technology", "financials", "healthcare", "energy",
+    "consumer", "automotive", "industrials", "utilities", "real estate",
+]
+
+
+def _looks_like_portfolio_question(question: str) -> bool:
+    """Check if a question contains portfolio-related keywords."""
+    q_lower = question.lower()
+    return any(kw in q_lower for kw in _PORTFOLIO_KEYWORDS)
+
 
 # ---------------------------------------------------------------------------
 # Agent
@@ -365,6 +393,14 @@ class PortfolioAgent:
         response = self._call_gemini_dispatch(question)
         tool_call = self._extract_tool_call(response)
 
+        # Step 1b: if no tool call but the question looks like portfolio data,
+        # retry with mode=ANY to force a tool call.  This catches the case
+        # where the model is uncertain and returns text instead of calling
+        # a tool for a valid portfolio question.
+        if tool_call is None and _looks_like_portfolio_question(question):
+            response = self._call_gemini_dispatch_forced(question)
+            tool_call = self._extract_tool_call(response)
+
         # Step 2a: no tool call — Gemini returned plain text (off-topic question
         # or malformed response)
         if tool_call is None:
@@ -434,6 +470,11 @@ class PortfolioAgent:
         response = self._call_gemini_dispatch(question)
         tool_call = self._extract_tool_call(response)
 
+        # Retry with mode=ANY if no tool call but question looks like portfolio data
+        if tool_call is None and _looks_like_portfolio_question(question):
+            response = self._call_gemini_dispatch_forced(question)
+            tool_call = self._extract_tool_call(response)
+
         if tool_call is None:
             # No tool call — model returned plain text (off-topic or error)
             return "decline_question", {}, None
@@ -462,20 +503,34 @@ class PortfolioAgent:
         self, question: str
     ) -> types.GenerateContentResponse:
         """
-        Send the user question to Gemini.
-
-        mode=ANY guarantees the response contains exactly one function_call
-        part and no text parts, so response.text is never accessed here.
-        Falls back through _FALLBACK_MODELS on 503.
+        Send the user question to Gemini with mode=AUTO.
+        The model may call a tool or return plain text.
         """
         config = types.GenerateContentConfig(
             system_instruction=_SYSTEM_PROMPT,
             temperature=0.0,
-            max_output_tokens=512,   # tool calls are short; no need for 2048
+            max_output_tokens=512,
             tools=_TOOLS,
             tool_config=_TOOL_CONFIG,
         )
         return self._call_with_fallback(question, config, step="dispatch")
+
+    def _call_gemini_dispatch_forced(
+        self, question: str
+    ) -> types.GenerateContentResponse:
+        """
+        Retry dispatch with mode=ANY — forces the model to call one of
+        the two tools.  Used when mode=AUTO returned no tool call for a
+        question that appears to be about portfolio data.
+        """
+        config = types.GenerateContentConfig(
+            system_instruction=_SYSTEM_PROMPT,
+            temperature=0.0,
+            max_output_tokens=512,
+            tools=_TOOLS,
+            tool_config=_FORCED_TOOL_CONFIG,
+        )
+        return self._call_with_fallback(question, config, step="dispatch-forced")
 
     # ------------------------------------------------------------------
     # Step 3: synthesis call — no tools, plain text response

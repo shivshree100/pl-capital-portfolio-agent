@@ -218,7 +218,10 @@ class TestUnitRouting:
         malformed.candidates = []
         malformed.text = None
 
+        # Mock both dispatch methods to return the malformed response
+        # (the retry with mode=ANY also gets the same malformed response)
         with patch.object(agent, "_call_gemini_dispatch", return_value=malformed), \
+             patch.object(agent, "_call_gemini_dispatch_forced", return_value=malformed), \
              patch.object(agent, "_dispatch_tool") as mock_dispatch:
             result = agent.answer("How many portfolios?")
 
@@ -226,6 +229,72 @@ class TestUnitRouting:
         mock_dispatch.assert_not_called()
         # Clear error message, not a misleading success
         assert "could not process" in result.lower() or "unexpected" in result.lower()
+
+    def test_retry_forces_tool_call_on_portfolio_question(self):
+        """
+        When mode=AUTO returns no tool call for a portfolio question,
+        answer() retries with mode=ANY to force a tool call.
+        """
+        agent = self._make_agent()
+
+        # First dispatch (AUTO) returns text (no tool call)
+        text_resp = _make_text_response("I cannot help with that.")
+        # Retry dispatch (ANY) returns a function call
+        forced_resp = _make_fc_response(
+            "run_sql_query",
+            {"sql": "SELECT COUNT(*) FROM portfolios"}
+        )
+        synth_resp = _make_text_response("There are 13 portfolios.")
+
+        with patch.object(agent, "_call_gemini_dispatch", return_value=text_resp), \
+             patch.object(agent, "_call_gemini_dispatch_forced", return_value=forced_resp), \
+             patch.object(agent, "_call_gemini_synthesise", return_value=synth_resp), \
+             patch.object(agent, "_dispatch_tool", return_value="SQL result: 13") as mock_dispatch:
+            result = agent.answer("Show me the top 5 holdings by cost basis")
+
+        # The tool WAS dispatched (because the retry forced it)
+        mock_dispatch.assert_called_once_with("run_sql_query", {"sql": "SELECT COUNT(*) FROM portfolios"})
+
+    def test_no_retry_for_off_topic_question(self):
+        """
+        Off-topic questions (no portfolio keywords) do NOT trigger a retry.
+        The text response is returned directly.
+        """
+        agent = self._make_agent()
+
+        text_resp = _make_text_response("I can only help with portfolio data.")
+
+        with patch.object(agent, "_call_gemini_dispatch", return_value=text_resp), \
+             patch.object(agent, "_call_gemini_dispatch_forced") as mock_forced, \
+             patch.object(agent, "_dispatch_tool") as mock_dispatch:
+            result = agent.answer("What is the weather today?")
+
+        # No retry (off-topic, no keywords)
+        mock_forced.assert_not_called()
+        # No tool dispatched
+        mock_dispatch.assert_not_called()
+        assert "portfolio" in result.lower()
+
+    def test_dispatch_retries_for_portfolio_question(self):
+        """
+        dispatch() retries with mode=ANY when no tool call is returned
+        for a question with portfolio keywords.
+        """
+        agent = self._make_agent()
+
+        text_resp = _make_text_response("I cannot help.")
+        forced_resp = _make_fc_response(
+            "run_sql_query",
+            {"sql": "SELECT COUNT(*) FROM portfolios"}
+        )
+
+        with patch.object(agent, "_call_gemini_dispatch", return_value=text_resp), \
+             patch.object(agent, "_call_gemini_dispatch_forced", return_value=forced_resp):
+            tool_name, tool_args, result = agent.dispatch("How many portfolios?")
+
+        assert tool_name == "run_sql_query"
+        assert isinstance(result, SqlResult)
+        assert result.success
 
     def test_extract_tool_call_returns_none_on_no_fc(self):
         """
