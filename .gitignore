@@ -29,7 +29,7 @@ htmlcov/
 coverage.xml
 
 # --- Streamlit ---
-.streamlit/
+.streamlit/cache/
 
 # --- IDE ---
 .vscode/
