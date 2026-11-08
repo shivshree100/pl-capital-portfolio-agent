@@ -38,16 +38,104 @@ st.set_page_config(
 )
 
 # ---------------------------------------------------------------------------
-# Colour palette
+# Colour palette — PL Capital inspired (deep navy, clean white, professional)
 # ---------------------------------------------------------------------------
 
-NAVY = "#16213E"
-OFF_WHITE = "#FAFAFA"
-LIGHT_GREY = "#E0E0E0"
-MUTED_GREEN = "#2D6A4F"
-MUTED_RED = "#C0392B"
-TEXT_DARK = "#1A1A2E"
-TEXT_MUTED = "#666666"
+NAVY = "#0A2540"          # Primary brand colour — deep navy
+BLUE = "#1B4F8C"          # Secondary blue for charts/accents
+LIGHT_BG = "#F4F6F9"      # Light background for sections
+BORDER = "#E2E8F0"        # Subtle borders/dividers
+MUTED_GREEN = "#1A7F5C"   # Positive values
+MUTED_RED = "#C0392B"     # Negative values
+TEXT_DARK = "#1A1A2E"     # Primary text
+TEXT_MUTED = "#64748B"    # Secondary text
+WHITE = "#FFFFFF"
+
+# Inject custom CSS for a professional fintech look
+st.markdown("""
+<style>
+    /* Clean header typography */
+    .stMarkdown h1, .stMarkdown h2, .stMarkdown h3, .stMarkdown h4 {
+        color: #0A2540;
+        font-weight: 600;
+        letter-spacing: -0.01em;
+    }
+    .stMarkdown h2 {
+        font-size: 1.5rem;
+        border-bottom: 1px solid #E2E8F0;
+        padding-bottom: 0.5rem;
+    }
+    .stMarkdown h4 {
+        font-size: 1.05rem;
+        font-weight: 600;
+        color: #0A2540;
+    }
+
+    /* Metric cards — flat, bordered, no shadow */
+    [data-testid="stMetric"] {
+        background: #FFFFFF;
+        border: 1px solid #E2E8F0;
+        border-radius: 4px;
+        padding: 16px 20px;
+    }
+    [data-testid="stMetricValue"] {
+        font-size: 1.6rem;
+        font-weight: 700;
+        color: #0A2540;
+    }
+    [data-testid="stMetricLabel"] {
+        font-size: 0.78rem;
+        font-weight: 500;
+        color: #64748B;
+        text-transform: uppercase;
+        letter-spacing: 0.03em;
+    }
+
+    /* Sidebar — clean, minimal */
+    [data-testid="stSidebar"] {
+        background: #0A2540;
+    }
+    [data-testid="stSidebar"] .stMarkdown {
+        color: #FFFFFF;
+    }
+    [data-testid="stSidebar"] h1, [data-testid="stSidebar"] h2 {
+        color: #FFFFFF;
+        font-weight: 700;
+    }
+    [data-testid="stSidebar"] .stRadio label {
+        color: #CBD5E1;
+        font-size: 0.9rem;
+    }
+    [data-testid="stSidebar"] .stRadio label:hover {
+        color: #FFFFFF;
+    }
+
+    /* Data tables — clean borders, readable */
+    .stDataFrame {
+        border: 1px solid #E2E8F0;
+        border-radius: 4px;
+    }
+
+    /* Chat input — professional */
+    .stChatInput textarea {
+        border: 1px solid #E2E8F0;
+        border-radius: 4px;
+    }
+
+    /* Selectbox — clean */
+    .stSelectbox > div > div {
+        border: 1px solid #E2E8F0;
+        border-radius: 4px;
+    }
+
+    /* Divider lines */
+    hr {
+        border: none;
+        border-top: 1px solid #E2E8F0;
+        margin: 1rem 0;
+    }
+</style>
+""", unsafe_allow_html=True)
 
 # ---------------------------------------------------------------------------
 # Helpers — direct database queries (no business logic duplication)
@@ -480,9 +568,15 @@ def render_explorer():
 
 def main():
     # Sidebar
-    st.sidebar.markdown("## PL Capital")
-    st.sidebar.markdown("Portfolio Analytics")
-    st.sidebar.markdown("---")
+    st.sidebar.markdown(
+        "<h1 style='color:#FFFFFF; margin-bottom:0;'>PL Capital</h1>",
+        unsafe_allow_html=True,
+    )
+    st.sidebar.markdown(
+        "<p style='color:#94A3B8; font-size:0.85rem; margin-top:0;'>Portfolio Analytics</p>",
+        unsafe_allow_html=True,
+    )
+    st.sidebar.markdown("<hr style='border-color:#1E3A5F; margin:0.5rem 0;'>", unsafe_allow_html=True)
 
     section = st.sidebar.radio(
         "Navigation",
@@ -490,11 +584,11 @@ def main():
         label_visibility="collapsed",
     )
 
-    st.sidebar.markdown("---")
+    st.sidebar.markdown("<hr style='border-color:#1E3A5F; margin:0.5rem 0;'>", unsafe_allow_html=True)
     st.sidebar.markdown(
-        f"<span style='color:{TEXT_MUTED}; font-size:0.8rem'>"
+        f"<p style='color:#64748B; font-size:0.75rem;'>"
         f"Database: {get_db_path().name}<br>"
-        f"Model: Gemini</span>",
+        f"Powered by Gemini AI</p>",
         unsafe_allow_html=True,
     )
 
