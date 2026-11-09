@@ -21,6 +21,7 @@ if str(PROJECT_ROOT) not in sys.path:
 import pandas as pd
 import altair as alt
 import streamlit as st
+import streamlit.components.v1 as components
 
 from src.database.connection import managed_connection, get_db_path
 from src.tools.exposure_tool import calculate_sector_exposure
@@ -126,6 +127,56 @@ st.markdown("""
     .stSelectbox > div > div {
         border: 1px solid #E2E8F0;
         border-radius: 4px;
+    }
+
+    /* Floating Lila button */
+    div[data-testid="stButton"] > button {
+        position: fixed !important;
+        top: 18px !important;
+        right: 18px !important;
+        z-index: 9999 !important;
+        border-radius: 999px !important;
+        background: linear-gradient(135deg, #0A2540 0%, #1B4F8C 100%) !important;
+        color: #FFFFFF !important;
+        border: none !important;
+        padding: 0.7rem 1.2rem !important;
+        font-weight: 700 !important;
+        font-size: 0.9rem !important;
+        box-shadow: 0 10px 24px rgba(10, 37, 64, 0.22) !important;
+        min-width: 96px !important;
+    }
+
+    .lila-video-card {
+        position: fixed !important;
+        top: 72px !important;
+        right: 20px !important;
+        width: 320px !important;
+        z-index: 9998 !important;
+        background: rgba(255,255,255,0.96) !important;
+        border: 1px solid rgba(10, 37, 64, 0.12) !important;
+        border-radius: 18px !important;
+        box-shadow: 0 18px 45px rgba(15, 23, 42, 0.18) !important;
+        padding: 12px !important;
+    }
+
+    .lila-video-header {
+        display: flex !important;
+        align-items: center !important;
+        justify-content: space-between !important;
+        margin-bottom: 8px !important;
+        font-weight: 700 !important;
+        color: #0A2540 !important;
+    }
+
+    .lila-video-close {
+        background: #0A2540 !important;
+        color: white !important;
+        border: none !important;
+        border-radius: 999px !important;
+        width: 28px !important;
+        height: 28px !important;
+        cursor: pointer !important;
+        font-weight: 700 !important;
     }
 
     /* Divider lines */
@@ -580,7 +631,7 @@ def main():
 
     section = st.sidebar.radio(
         "Navigation",
-        ["Overview", "AI Assistant", "Sector Exposure", "Performance & Risk", "Data Explorer"],
+        ["Overview", "Sector Exposure", "Performance & Risk", "Data Explorer"],
         label_visibility="collapsed",
     )
 
@@ -592,17 +643,38 @@ def main():
         unsafe_allow_html=True,
     )
 
+    if "show_lila_assistant" not in st.session_state:
+        st.session_state.show_lila_assistant = False
+
     # Route to section
     if section == "Overview":
         render_overview()
-    elif section == "AI Assistant":
-        render_assistant()
     elif section == "Sector Exposure":
         render_exposure()
     elif section == "Performance & Risk":
         render_performance_risk()
     elif section == "Data Explorer":
         render_explorer()
+
+    if st.button("Lila", key="lila_assistant_toggle", help="Open AI Assistant"):
+        st.session_state.show_lila_assistant = not st.session_state.show_lila_assistant
+
+    if st.session_state.show_lila_assistant:
+        st.markdown(
+            """
+            <div class="lila-video-card">
+                <div class="lila-video-header">
+                    <span>Lila AI Assistant</span>
+                    <button class="lila-video-close" onclick="document.querySelector('.lila-video-card').style.display='none'">×</button>
+                </div>
+                <video controls autoplay muted playsinline style="width: 100%; border-radius: 12px; background: #0A2540;">
+                    <source src="https://www.w3schools.com/html/mov_bbb.mp4" type="video/mp4">
+                    Your browser does not support the video tag.
+                </video>
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
 
 
 if __name__ == "__main__":

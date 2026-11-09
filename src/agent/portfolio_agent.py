@@ -389,6 +389,16 @@ class PortfolioAgent:
         if not question or not question.strip():
             return "Please enter a question."
 
+        # Check response cache before hitting Gemini
+        try:
+            from src.cache import query_cache, _NOT_FOUND
+            cache_key = f"agent:answer:{question.strip().lower()}"
+            cached_answer = query_cache.get(cache_key)
+            if cached_answer is not _NOT_FOUND:
+                return cached_answer
+        except Exception:
+            cache_key = None
+
         # Step 1: Gemini picks a tool or returns plain text (mode=AUTO)
         response = self._call_gemini_dispatch(question)
         tool_call = self._extract_tool_call(response)
@@ -425,6 +435,13 @@ class PortfolioAgent:
             )
             answer_text = self._extract_text(final_response)
             if answer_text and answer_text != "(No response received)":
+                # Cache successful answers (120s TTL via query_cache)
+                try:
+                    from src.cache import query_cache
+                    if cache_key:
+                        query_cache.set(cache_key, answer_text)
+                except Exception:
+                    pass
                 return answer_text
             # Synthesis returned empty — fall through to raw tool result
             print("  [WARN] Synthesis returned no text; showing raw tool result.")
@@ -504,8 +521,24 @@ class PortfolioAgent:
     ) -> types.GenerateContentResponse:
         """
         Send the user question to Gemini with mode=AUTO.
+        RAG context (verified database facts) is prepended to the question
+        when relevant entities are detected.
         The model may call a tool or return plain text.
         """
+        # Build RAG context — inject verified facts for detected entities
+        try:
+            from src.rag import build_context
+            context = build_context(question, db_path=self._db_path)
+        except Exception:
+            context = ""  # degrade gracefully if RAG fails
+
+        # Prepend context to the question if we have any
+        augmented = (
+            f"{context}\n\n## User Question\n{question}"
+            if context
+            else question
+        )
+
         config = types.GenerateContentConfig(
             system_instruction=_SYSTEM_PROMPT,
             temperature=0.0,
@@ -513,7 +546,7 @@ class PortfolioAgent:
             tools=_TOOLS,
             tool_config=_TOOL_CONFIG,
         )
-        return self._call_with_fallback(question, config, step="dispatch")
+        return self._call_with_fallback(augmented, config, step="dispatch")
 
     def _call_gemini_dispatch_forced(
         self, question: str
