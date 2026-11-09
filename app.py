@@ -21,7 +21,6 @@ if str(PROJECT_ROOT) not in sys.path:
 import pandas as pd
 import altair as alt
 import streamlit as st
-import streamlit.components.v1 as components
 
 from src.database.connection import managed_connection, get_db_path
 from src.tools.exposure_tool import calculate_sector_exposure
@@ -52,12 +51,16 @@ TEXT_DARK = "#1A1A2E"     # Primary text
 TEXT_MUTED = "#64748B"    # Secondary text
 WHITE = "#FFFFFF"
 
-# Inject custom CSS for a professional fintech look
+# Inject custom CSS for a branded fintech look.
 st.markdown("""
 <style>
+    [data-testid="stAppViewContainer"] {
+        background: linear-gradient(135deg, #F7F9FF 0%, #EFF4FF 52%, #F0FAF6 100%);
+    }
+
     /* Clean header typography */
     .stMarkdown h1, .stMarkdown h2, .stMarkdown h3, .stMarkdown h4 {
-        color: #0A2540;
+        color: #122A8A;
         font-weight: 600;
         letter-spacing: -0.01em;
     }
@@ -72,17 +75,50 @@ st.markdown("""
         color: #0A2540;
     }
 
+    .welcome-hero {
+        margin: 0.5rem 0 2rem;
+        padding: 2rem 2.25rem;
+        border: 1px solid rgba(255, 255, 255, 0.7);
+        border-radius: 22px;
+        background: linear-gradient(115deg, #102B91 0%, #1767B1 58%, #0A9871 100%);
+        box-shadow: 0 16px 38px rgba(18, 42, 138, 0.16);
+        color: #FFFFFF;
+    }
+    .welcome-hero h1 {
+        margin: 0 0 0.45rem;
+        color: #FFFFFF !important;
+        font-size: clamp(1.8rem, 3vw, 2.5rem);
+        font-weight: 750;
+        letter-spacing: -0.035em;
+    }
+    .welcome-hero h2 {
+        margin: 0 0 1rem;
+        padding: 0;
+        border: 0;
+        color: #E8F0FF !important;
+        font-size: clamp(1.15rem, 2vw, 1.45rem);
+        font-weight: 600;
+    }
+    .welcome-hero p {
+        max-width: 900px;
+        margin: 0.55rem 0 0;
+        color: rgba(255, 255, 255, 0.92);
+        font-size: 1rem;
+        line-height: 1.7;
+    }
+
     /* Metric cards — flat, bordered, no shadow */
     [data-testid="stMetric"] {
-        background: #FFFFFF;
-        border: 1px solid #E2E8F0;
-        border-radius: 4px;
+        background: linear-gradient(145deg, #FFFFFF 0%, #F2F6FF 100%);
+        border: 1px solid #DCE5F5;
+        border-radius: 14px;
         padding: 16px 20px;
+        box-shadow: 0 6px 18px rgba(18, 42, 138, 0.06);
     }
     [data-testid="stMetricValue"] {
         font-size: 1.6rem;
         font-weight: 700;
-        color: #0A2540;
+        color: #122A8A;
     }
     [data-testid="stMetricLabel"] {
         font-size: 0.78rem;
@@ -92,12 +128,18 @@ st.markdown("""
         letter-spacing: 0.03em;
     }
 
-    /* Sidebar — clean, minimal */
+    /* PL Capital gradient sidebar */
     [data-testid="stSidebar"] {
-        background: #0A2540;
+        background: linear-gradient(165deg, #07165E 0%, #1236A0 58%, #087A67 100%);
     }
     [data-testid="stSidebar"] .stMarkdown {
         color: #FFFFFF;
+    }
+    [data-testid="stSidebar"] [data-testid="stImage"] {
+        background: #FFFFFF;
+        padding: 8px;
+        border-radius: 16px;
+        box-shadow: 0 8px 24px rgba(3, 12, 55, 0.22);
     }
     [data-testid="stSidebar"] h1, [data-testid="stSidebar"] h2 {
         color: #FFFFFF;
@@ -110,11 +152,18 @@ st.markdown("""
     [data-testid="stSidebar"] .stRadio label:hover {
         color: #FFFFFF;
     }
+    [data-testid="stSidebar"] .stRadio [data-testid="stWidgetLabel"] {
+        color: #DCE8FF;
+    }
+    [data-testid="stSidebar"] hr {
+        border-top-color: rgba(255, 255, 255, 0.24);
+    }
 
     /* Data tables — clean borders, readable */
     .stDataFrame {
-        border: 1px solid #E2E8F0;
-        border-radius: 4px;
+        border: 1px solid #DCE5F5;
+        border-radius: 12px;
+        box-shadow: 0 6px 18px rgba(18, 42, 138, 0.05);
     }
 
     /* Chat input — professional */
@@ -125,58 +174,55 @@ st.markdown("""
 
     /* Selectbox — clean */
     .stSelectbox > div > div {
-        border: 1px solid #E2E8F0;
-        border-radius: 4px;
+        border: 1px solid #D4DEF2;
+        border-radius: 10px;
     }
 
     /* Floating Lila button */
-    div[data-testid="stButton"] > button {
+    .st-key-lila_assistant_toggle {
         position: fixed !important;
-        top: 18px !important;
-        right: 18px !important;
+        right: 24px !important;
+        bottom: 24px !important;
         z-index: 9999 !important;
+    }
+
+    .st-key-lila_assistant_toggle button {
         border-radius: 999px !important;
-        background: linear-gradient(135deg, #0A2540 0%, #1B4F8C 100%) !important;
+        background: linear-gradient(110deg, #122A8A 0%, #1767B1 58%, #0A9871 100%) !important;
         color: #FFFFFF !important;
         border: none !important;
-        padding: 0.7rem 1.2rem !important;
+        padding: 0.8rem 1.25rem !important;
         font-weight: 700 !important;
         font-size: 0.9rem !important;
         box-shadow: 0 10px 24px rgba(10, 37, 64, 0.22) !important;
-        min-width: 96px !important;
+        min-width: 230px !important;
     }
 
-    .lila-video-card {
+    .st-key-lila_chat_panel {
         position: fixed !important;
-        top: 72px !important;
-        right: 20px !important;
-        width: 320px !important;
+        bottom: 88px !important;
+        right: 24px !important;
+        width: min(380px, calc(100vw - 32px)) !important;
         z-index: 9998 !important;
-        background: rgba(255,255,255,0.96) !important;
+        background: #FFFFFF !important;
         border: 1px solid rgba(10, 37, 64, 0.12) !important;
-        border-radius: 18px !important;
+        border-radius: 16px !important;
         box-shadow: 0 18px 45px rgba(15, 23, 42, 0.18) !important;
-        padding: 12px !important;
+        padding: 16px !important;
     }
 
-    .lila-video-header {
-        display: flex !important;
-        align-items: center !important;
-        justify-content: space-between !important;
-        margin-bottom: 8px !important;
-        font-weight: 700 !important;
-        color: #0A2540 !important;
+    .st-key-lila_chat_panel [data-testid="stVerticalBlock"] {
+        gap: 0.55rem;
     }
 
-    .lila-video-close {
-        background: #0A2540 !important;
-        color: white !important;
-        border: none !important;
-        border-radius: 999px !important;
-        width: 28px !important;
-        height: 28px !important;
-        cursor: pointer !important;
-        font-weight: 700 !important;
+    .st-key-lila_chat_panel [data-testid="stChatMessage"] {
+        padding: 0.6rem 0.75rem;
+        border-radius: 12px;
+        background: #F4F6F9;
+    }
+
+    .st-key-lila_chat_panel .stTextInput input {
+        border-radius: 10px;
     }
 
     /* Divider lines */
@@ -231,6 +277,20 @@ def _kpi_card(label: str, value: str, delta: str = ""):
 # ---------------------------------------------------------------------------
 
 def render_overview():
+    st.markdown(
+        """
+        <section class="welcome-hero">
+            <h1>Welcome to PL Capital</h1>
+            <h2>Your portfolios. Your insights. One place.</h2>
+            <p>Explore your investment portfolios, monitor assets under management,
+            analyse sector exposures, and track portfolio performance and risk —
+            all through one unified analytics platform.</p>
+            <p>Explore your portfolio dashboard or ask Lila, your AI assistant,
+            to help you uncover meaningful insights.</p>
+        </section>
+        """,
+        unsafe_allow_html=True,
+    )
     st.markdown("## Portfolio Overview")
     st.markdown("---")
 
@@ -613,21 +673,80 @@ def render_explorer():
         st.dataframe(df, use_container_width=True, hide_index=True)
 
 
+def render_lila_chat_panel():
+    """Render Lila's compact, in-page chat popup."""
+    with st.container(key="lila_chat_panel"):
+        title_col, close_col = st.columns([5, 1])
+        with title_col:
+            st.markdown("### Lila AI Assistant")
+        with close_col:
+            if st.button("×", key="lila_assistant_close", help="Close Lila"):
+                st.session_state.show_lila_assistant = False
+                st.rerun()
+
+        st.caption("Ask about portfolios, holdings, exposure, performance, or risk.")
+
+        if "chat_messages" not in st.session_state:
+            st.session_state.chat_messages = []
+
+        for message in st.session_state.chat_messages:
+            with st.chat_message(message["role"]):
+                st.markdown(message["content"])
+
+        with st.form("lila_chat_form", clear_on_submit=True):
+            question = st.text_input(
+                "Your question",
+                placeholder="Ask Lila about your portfolio...",
+                label_visibility="collapsed",
+            )
+            submitted = st.form_submit_button("Send", use_container_width=True)
+
+        if submitted and question.strip():
+            st.session_state.chat_messages.append(
+                {"role": "user", "content": question.strip()}
+            )
+
+            if "portfolio_agent" not in st.session_state:
+                try:
+                    from src.agent.portfolio_agent import PortfolioAgent
+                    st.session_state.portfolio_agent = PortfolioAgent()
+                except RuntimeError as exc:
+                    st.session_state.portfolio_agent = None
+                    st.session_state.chat_messages.append(
+                        {"role": "assistant", "content": f"Agent is not available: {exc}"}
+                    )
+
+            agent = st.session_state.portfolio_agent
+            if agent is not None:
+                try:
+                    with st.spinner("Lila is thinking..."):
+                        answer = agent.answer(question.strip())
+                except RuntimeError as exc:
+                    answer = f"Error: {exc}"
+                except Exception as exc:
+                    answer = f"Unexpected error: {exc}"
+
+                st.session_state.chat_messages.append(
+                    {"role": "assistant", "content": answer}
+                )
+            st.rerun()
+
+
 # ---------------------------------------------------------------------------
 # Main app — sidebar navigation
 # ---------------------------------------------------------------------------
 
 def main():
     # Sidebar
-    st.sidebar.markdown(
-        "<h1 style='color:#FFFFFF; margin-bottom:0;'>PL Capital</h1>",
-        unsafe_allow_html=True,
+    st.sidebar.image(
+        str(PROJECT_ROOT / "assets" / "pl-capital-logo.png"),
+        width="stretch",
     )
     st.sidebar.markdown(
-        "<p style='color:#94A3B8; font-size:0.85rem; margin-top:0;'>Portfolio Analytics</p>",
+        "<p style='color:#DCE8FF; font-size:0.85rem; margin-top:0.6rem;'>Portfolio Analytics</p>",
         unsafe_allow_html=True,
     )
-    st.sidebar.markdown("<hr style='border-color:#1E3A5F; margin:0.5rem 0;'>", unsafe_allow_html=True)
+    st.sidebar.markdown("<hr style='margin:0.5rem 0;'>", unsafe_allow_html=True)
 
     section = st.sidebar.radio(
         "Navigation",
@@ -635,9 +754,9 @@ def main():
         label_visibility="collapsed",
     )
 
-    st.sidebar.markdown("<hr style='border-color:#1E3A5F; margin:0.5rem 0;'>", unsafe_allow_html=True)
+    st.sidebar.markdown("<hr style='margin:0.5rem 0;'>", unsafe_allow_html=True)
     st.sidebar.markdown(
-        f"<p style='color:#64748B; font-size:0.75rem;'>"
+        f"<p style='color:#DCE8FF; font-size:0.75rem;'>"
         f"Database: {get_db_path().name}<br>"
         f"Powered by Gemini AI</p>",
         unsafe_allow_html=True,
@@ -656,25 +775,15 @@ def main():
     elif section == "Data Explorer":
         render_explorer()
 
-    if st.button("Lila", key="lila_assistant_toggle", help="Open AI Assistant"):
+    if st.button(
+        "Hi, I am Lila, your AI Assistant",
+        key="lila_assistant_toggle",
+        help="Open AI Assistant",
+    ):
         st.session_state.show_lila_assistant = not st.session_state.show_lila_assistant
 
     if st.session_state.show_lila_assistant:
-        st.markdown(
-            """
-            <div class="lila-video-card">
-                <div class="lila-video-header">
-                    <span>Lila AI Assistant</span>
-                    <button class="lila-video-close" onclick="document.querySelector('.lila-video-card').style.display='none'">×</button>
-                </div>
-                <video controls autoplay muted playsinline style="width: 100%; border-radius: 12px; background: #0A2540;">
-                    <source src="https://www.w3schools.com/html/mov_bbb.mp4" type="video/mp4">
-                    Your browser does not support the video tag.
-                </video>
-            </div>
-            """,
-            unsafe_allow_html=True,
-        )
+        render_lila_chat_panel()
 
 
 if __name__ == "__main__":
